@@ -17,6 +17,7 @@ config.lr_decay_rate = 0.7
 config.weight_decay = 0
 config.momentum = 0.9
 config.grid_clip_norm = -1
+config.loss_weight = True
 
 # ---------------------------------------------------------------------------- #
 # Model
