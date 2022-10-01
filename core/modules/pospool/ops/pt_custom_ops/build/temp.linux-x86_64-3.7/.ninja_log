@@ -1,0 +1,10 @@
+# ninja log v5
+0	31384	1663774057800527328	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/bindings.o	abb9c54b9ac2c8f0
+1	33682	1663774060104561652	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/group_points_gpu.o	8087285bf6c596b9
+2	33815	1663774060240563679	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_nearest_query_gpu.o	2b40ea362b33a9d1
+0	33923	1663774060348565288	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/group_points.o	e4deec2fc6fe90ec
+0	34182	1663774060600569043	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_ordered_ball_query.o	1758ba8d2fb5603f
+2	34484	1663774060900573512	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_nearest_query.o	bf3bb9524c197346
+1	34501	1663774060928573930	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_grid_subsampling.o	75148652ae10d5d7
+1	40715	1663774067144666548	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_grid_subsampling_gpu.o	c786d8fe9fd74232
+2	44155	1663774070584717812	/data1/zzh/projects/sensatUrban/core/modules/pospool/ops/pt_custom_ops/build/temp.linux-x86_64-3.7/_ext_src/src/masked_ordered_ball_query_gpu.o	b255856bbb5cb25c
