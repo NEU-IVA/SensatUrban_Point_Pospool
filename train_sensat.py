@@ -226,7 +226,7 @@ def main(config):
         raise NotImplementedError(f"Optimizer {config.optimizer} not supported")
 
     scheduler = get_scheduler(optimizer, len(train_loader), config)
-
+    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DistributedDataParallel(model, device_ids=[config.local_rank], broadcast_buffers=False)
 
     # optionally resume from a checkpoint
