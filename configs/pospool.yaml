@@ -2,6 +2,7 @@ data_root: "/data1/zzh/datasets/sensaturban/"
 num_points: 200000
 max_epoch: 50
 batch_size: 4
+loss_weight: false
 
 # senstaurban
 bev_size: 500

@@ -45,7 +45,10 @@ def build_sensat_segmentation(config, proportions):
                                    config.input_features_dim,
                                    config.radius, config.sampleDl, config.nsamples, config.npoints,
                                    config.width, config.depth, config.bottleneck_ratio)
-    criterion = MaskedWeightCrossEntropy(proportions)
+    if config.loss_weight:
+        criterion = MaskedWeightCrossEntropy(proportions)
+    else:
+        criterion = MaskedCrossEntropy()
     return model, criterion
 
 class ClassificationModel(nn.Module):
