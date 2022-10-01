@@ -22,18 +22,18 @@ from sklearn.neighbors.kd_tree import KDTree
 
 class SensatUrban_ultra(dict):
 
-    def __init__(self, voxel_size, num_points, dataset_root, train_transform, test_trainsform, bev_size):
+    def __init__(self, voxel_size, num_points, dataset_root, train_transform, test_trainsform, bev_size, bev_name='rgb'):
         super().__init__({
             'train': SensatUrban(split='train', voxel_size=voxel_size,
-                                 num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=train_transform),
+                                 num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=train_transform, bev_name),
             'val': SensatUrban(split='val', voxel_size=voxel_size,
-                                num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=test_trainsform)
+                                num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=test_trainsform, bev_name)
         })
 
 
 class SensatUrban():
 
-    def __init__(self, split, voxel_size, num_points, dataset_root, bev_size, transform=None):
+    def __init__(self, split, voxel_size, num_points, dataset_root, bev_size, transform=None, bev_name='rgb'):
         self.num_points = num_points
         self.mode = split
         self.dataset_path = dataset_root
@@ -46,6 +46,7 @@ class SensatUrban():
         self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
         self.ignored_labels = np.array([])
         self.transform = transform
+        self.bev_name = bev_name
 
         self.bev_size = bev_size
         self.train_files = np.sort(glob.glob(join(self.dataset_path, 'train', 'ply', '*.ply')))
@@ -162,7 +163,7 @@ class SensatUrban():
     def spatially_regular_gen(self, path, return_kdtree=False):
         filename = os.path.basename(path)[:-4]
         root_path = os.path.join(self.dataset_path, self.mode)
-        bev_path = os.path.join(root_path, 'rgb', filename + '.png')
+        bev_path = os.path.join(root_path, self.bev_name, filename + '.png')
         alt_path = os.path.join(root_path, 'alt', filename + '.npy')
         ply_path = path
 
