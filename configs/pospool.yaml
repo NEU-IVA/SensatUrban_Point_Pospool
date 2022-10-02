@@ -8,6 +8,7 @@ loss_weight: false
 bev_size: 500
 bev_scale: 0.05
 bev_range: 12.5
+bev_name: "bev"
 num_classes: 13
 training_size: 33
 

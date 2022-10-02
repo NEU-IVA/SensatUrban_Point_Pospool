@@ -25,9 +25,9 @@ class SensatUrban_ultra(dict):
     def __init__(self, voxel_size, num_points, dataset_root, train_transform, test_trainsform, bev_size, bev_name='rgb'):
         super().__init__({
             'train': SensatUrban(split='train', voxel_size=voxel_size,
-                                 num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=train_transform, bev_name),
+                                 num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=train_transform, bev_name=bev_name),
             'val': SensatUrban(split='val', voxel_size=voxel_size,
-                                num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=test_trainsform, bev_name)
+                                num_points=num_points, dataset_root=dataset_root, bev_size=bev_size, transform=test_trainsform, bev_name=bev_name)
         })
 
 
