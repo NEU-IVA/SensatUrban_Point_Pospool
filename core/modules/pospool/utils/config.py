@@ -133,6 +133,7 @@ config.bev_scale = 0.05
 config.bev_range = 12.5
 config.num_classes = 13
 config.training_size = 33
+config.bev_name = 'rgb'
 
 
 def update_config(config_file):

@@ -119,7 +119,8 @@ def get_loader(config):
 
     datasets = SensatUrban_ultra(num_points=config.num_points, voxel_size=0.1,
                                  dataset_root=config.data_root, train_transform=train_transforms,
-                                 test_trainsform=test_transforms, bev_size=config.bev_size)
+                                 test_trainsform=test_transforms, bev_size=config.bev_size, 
+                                 bev_name=config.bev_name)
     dataflow = {}
 
     for split in datasets:
