@@ -96,10 +96,10 @@ class SensatUrban():
             xyzs, labels, bev, alt, rgb, kdtree = self.spatially_regular_gen(self.val_files[index], True)
         else:
             xyzs, labels, bev, alt, rgb, kdtree = self.spatially_regular_gen(self.val_files[index], True)
-
+        
         voxels = np.round(xyzs / self.voxel_size).astype(np.int32)
         voxels -= voxels.min(0, keepdims=1)
-
+        
         xyzs = xyzs.astype(np.float32)
         if self.transform is not None:
             xyzs = self.transform(xyzs)
@@ -206,6 +206,7 @@ class SensatUrban():
 
     def generate_proportion(self, files):
         proportions = np.zeros(self.num_classes, dtype=np.int32)
+        print("generating proportions (be used to calculate the loss weight)")
         for filepath in tqdm(files):
             _, labels, *_ = self.spatially_regular_gen(filepath)
             for label in range(self.num_classes):
@@ -217,6 +218,9 @@ class SensatUrban():
         kdtree_dir = os.path.split(files[0])[0].replace('ply', 'kdt')
         if not os.path.exists(kdtree_dir):
             os.mkdir(kdtree_dir)
+            print("saving kdtree files in data root")
+        else:
+            print("loading kdtree files")
         for file in tqdm(files):
             kdtree_path = os.path.join(os.path.split(file)[0].replace('ply', 'kdt'), os.path.basename(file)[:-4] + ".pkl")
             if not os.path.exists(kdtree_path):

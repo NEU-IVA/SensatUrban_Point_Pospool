@@ -7,6 +7,7 @@ import sys
 import time
 import json
 import random
+import warnings
 import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -279,10 +280,12 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
     data_time = AverageMeter()
     loss_meter = AverageMeter()
     end = time.time()
-
+    logger.info(f'+-------------------------------------------------------------------+')
+    logger.info(f'Train: [E {epoch}/{config.epochs}]')
     for idx, results in enumerate(train_loader):
         data_time.update(time.time() - end)
-
+        print("step start========================")
+        test_time = time.time()
         points = results['lidar'].F
         mask = results['mask'].F.unsqueeze(0)
         features = torch.hstack((results['rgb'].F, points)).unsqueeze(0)
@@ -290,38 +293,47 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         points_labels = results['targets'].F.unsqueeze(0)
         search_tree = results['kdtree']
         bsz = results['lidar'].C[:, 3].max()+1
+        print("load data time: ", time.time()-test_time)
+        test_time = time.time()
 
         # forward
         points = points.cuda(non_blocking=True)
         mask = mask.cuda(non_blocking=True)
         features = features.cuda(non_blocking=True)
         points_labels = points_labels.cuda(non_blocking=True)
+        print("cuda loading time: ", time.time()-test_time)
+        test_time = time.time()
 
         if config.knn_radius == 0:
             pred = model(points, mask, features.transpose(1, 2)).cuda(non_blocking=True)
         elif config.knn_radius > 0:
             raise NotImplementedError  # TODO: Complete Sliding Window Method
             # potentials = np.random.rand()
-
+        print("model prediction time: ", time.time()-test_time)
+        test_time = time.time()
         loss = criterion(pred, points_labels, mask)
+        print("criterion time: ", time.time()-test_time)
+        test_time = time.time()
 
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         optimizer.step()
         scheduler.step()
+        print("backward time: ", time.time()-test_time)
 
         # update meters
         loss_meter.update(loss.item(), bsz)
         batch_time.update(time.time() - end)
         end = time.time()
+        print("batch time: ", time.time()-end)
 
         # print info
         if idx % config.print_freq == 0:
-            logger.info(f'Train: [{epoch}/{config.epochs + 1}][{idx}/{len(train_loader)}]\t'
-                        f'T {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                        f'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                        f'loss {loss_meter.val:.3f} ({loss_meter.avg:.3f})')
+            logger.info(f'Train: [S {idx}/{len(train_loader)}]\t'
+                        f'Batch Time {batch_time.val:.3f}\t'
+                        f'Data Time {data_time.val:.3f}\t'
+                        f'loss {loss_meter.val:.3f} (avg {loss_meter.avg:.3f})')
             # logger.info(f'[{cloud_label}]: {input_inds}')
     return loss_meter.avg
 
@@ -423,6 +435,7 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
 
 
 if __name__ == "__main__":
+    warnings.filterwarnings('ignore')
     opt, config = parse_option()
 
     torch.cuda.set_device(config.local_rank)
