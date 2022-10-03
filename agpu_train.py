@@ -162,7 +162,7 @@ def main(config):
     logger.info(f"length of validation dataset: {n_data}")
 
     model, criterion = build_sensat_segmentation(config, train_loader.dataset.proportions)
-    model = model.cuda()
+    model = torch.nn.DataParallel(model, device_ids=config.gpus).cuda()
     criterion = criterion.cuda()
 
     if config.optimizer == 'sgd':
@@ -195,9 +195,6 @@ def main(config):
 
     # routine
     for epoch in range(config.start_epoch, config.epochs + 1):
-        train_loader.sampler.set_epoch(epoch)
-        val_loader.sampler.set_epoch(epoch)
-        train_loader.dataset.epoch = epoch - 1
         tic = time.time()
         loss = train(epoch, train_loader, model, criterion, optimizer, scheduler, config)
 
@@ -252,9 +249,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         print("cuda loading time: ", time.time()-test_time)
         test_time = time.time()
 
-        points_labels = points_labels.clone().detach()
-        mask = mask.clone().detach()
-        features = features.transpose(2, 1).contiguous().clone().detach()
+        features = features.transpose(2, 1).contiguous()
         # features = features.transpose(2, 1).contiguous()
         print("clone time: ", time.time()-test_time)
         test_time = time.time()
@@ -394,8 +389,6 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
 if __name__ == "__main__":
     opt, config = parse_option()
 
-    torch.cuda.set_device(config.local_rank)
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True

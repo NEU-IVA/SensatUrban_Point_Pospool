@@ -2,6 +2,8 @@ import yaml
 from easydict import EasyDict as edict
 
 config = edict()
+
+config.gpus = [0]
 # ---------------------------------------------------------------------------- #
 # Training options
 # ---------------------------------------------------------------------------- #
