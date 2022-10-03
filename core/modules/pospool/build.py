@@ -124,13 +124,8 @@ class SceneSegmentationModel(nn.Module):
             raise NotImplementedError(f"Head {backbone} not implemented in Multi-Part Segmentation Model")
 
     def forward(self, xyz, mask, features):
-        t = time.time()
-        print("    points shape: ", xyz.shape)
         end_points = self.backbone(xyz, mask, features)
-        print("    backbone(resnet) time: ", time.time()-t)
-        t = time.time()
         result = self.segmentation_head(end_points)
-        print("    seg_head time: ", time.time()-t)
         return result
 
     def init_weights(self):

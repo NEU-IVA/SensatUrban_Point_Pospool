@@ -31,9 +31,10 @@ class SensatUrban_ultra(dict):
         })
 
 
-class SensatUrban():
+class SensatUrban(torch.utils.data.Dataset):
 
     def __init__(self, split, voxel_size, num_points, dataset_root, bev_size, transform=None, bev_name='rgb'):
+        super(SensatUrban, self).__init__()
         self.num_points = num_points
         self.mode = split
         self.dataset_path = dataset_root
@@ -65,8 +66,7 @@ class SensatUrban():
             self.files = self.test_files  # TODO: update test data
             raise NotImplementedError
 
-        self.gen_kdtree_pkl(self.train_files)
-        self.gen_kdtree_pkl(self.val_files)
+        self.gen_kdtree_pkl(self.files)
         # self.gen_kdtree_pkl(self.test_files)
 
         proportions_file = os.path.join(self.dataset_path, "{}_proportions.npy".format(self.mode))

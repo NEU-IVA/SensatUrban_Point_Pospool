@@ -1,10 +1,5 @@
-"""
-Distributed training script for scene segmentation with Sensaturban dataset
-"""
 import argparse
 import os
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -14,17 +9,10 @@ import json
 import random
 import numpy as np
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.append(ROOT_DIR)
-
 import torch
 import torch.nn as nn
 from torchvision import transforms
-import torch.distributed as dist
-from torchpack import distributed as tp_dist
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn.parallel import DistributedDataParallel
 from sklearn.metrics import confusion_matrix
 
 import core.modules.pospool.utils.data_utils as d_utils
@@ -60,7 +48,6 @@ def parse_option():
     parser.add_argument('--log_dir', type=str, default='log', help='log dir [default: log]')
 
     # misc
-    parser.add_argument("--local_rank", type=int, help='local rank for DistributedDataParallel')
     parser.add_argument("--rng_seed", type=int, default=0, help='manual seed')
 
     args, unparsed = parser.parse_known_args()
@@ -75,8 +62,6 @@ def parse_option():
     config.val_freq = args.val_freq
     config.rng_seed = args.rng_seed
     config.knn_radius = args.knn_radius
-
-    config.local_rank = args.local_rank
 
     ddir_name = args.cfg.split('.')[-2].split('/')[-1]
     config.log_dir = os.path.join(args.log_dir, 'SensatUrban', f'{ddir_name}_{int(time.time())}')
@@ -124,52 +109,17 @@ def get_loader(config):
 
     datasets = SensatUrban_ultra(num_points=config.num_points, voxel_size=0.1,
                                  dataset_root=config.data_root, train_transform=train_transforms,
-                                 test_trainsform=test_transforms, bev_size=config.bev_size, 
+                                 test_trainsform=test_transforms, bev_size=config.bev_size,
                                  bev_name=config.bev_name)
     dataflow = {}
 
     for split in datasets:
-        sampler = torch.utils.data.distributed.DistributedSampler(
-            datasets[split],
-            num_replicas=tp_dist.size(),
-            rank=tp_dist.rank(),
-            shuffle=(split == 'train'))
         dataflow[split] = torch.utils.data.DataLoader(
             datasets[split],
             batch_size=config.batch_size,
-            sampler=sampler,
             num_workers=config.num_workers,
             pin_memory=True,
             collate_fn=datasets[split].collate_fn, prefetch_factor=4)
-
-    # train_dataset = S3DISSeg(input_features_dim=config.input_features_dim,
-    #                          subsampling_parameter=config.sampleDl, color_drop=config.color_drop,
-    #                          in_radius=config.in_radius, num_points=config.num_points,
-    #                          num_steps=config.num_steps, num_epochs=config.epochs,
-    #                          data_root=config.data_root, transforms=train_transforms,
-    #                          split='train')
-    # val_dataset = S3DISSeg(input_features_dim=config.input_features_dim,
-    #                        subsampling_parameter=config.sampleDl, color_drop=config.color_drop,
-    #                        in_radius=config.in_radius, num_points=config.num_points,
-    #                        num_steps=config.num_steps, num_epochs=20,
-    #                        data_root=config.data_root, transforms=test_transforms,
-    #                        split='val')
-    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=False)
-    # train_loader = torch.utils.data.DataLoader(train_dataset,
-    #                                            batch_size=config.batch_size,
-    #                                            shuffle=False,
-    #                                            num_workers=config.num_workers,
-    #                                            pin_memory=True,
-    #                                            sampler=train_sampler,
-    #                                            drop_last=True)
-    # val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
-    # val_loader = torch.utils.data.DataLoader(val_dataset,
-    #                                          batch_size=config.batch_size,
-    #                                          shuffle=False,
-    #                                          num_workers=config.num_workers,
-    #                                          pin_memory=True,
-    #                                          sampler=val_sampler,
-    #                                          drop_last=False)
 
     return dataflow['train'], dataflow['val']
 
@@ -217,7 +167,7 @@ def main(config):
 
     if config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(),
-                                    lr=config.batch_size * dist.get_world_size() / 8 * config.base_learning_rate,
+                                    lr=config.base_learning_rate,
                                     momentum=config.momentum,
                                     weight_decay=config.weight_decay)
     elif config.optimizer == 'adam':
@@ -232,8 +182,6 @@ def main(config):
         raise NotImplementedError(f"Optimizer {config.optimizer} not supported")
 
     scheduler = get_scheduler(optimizer, len(train_loader), config)
-    # model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model = DistributedDataParallel(model, device_ids=[config.local_rank], broadcast_buffers=False)
 
     # optionally resume from a checkpoint
     if config.load_path:
@@ -243,10 +191,7 @@ def main(config):
         validate('resume', val_loader, model, criterion, config, num_votes=2)
 
     # tensorboard
-    if dist.get_rank() == 0:
-        summary_writer = SummaryWriter(log_dir=config.log_dir)
-    else:
-        summary_writer = None
+    summary_writer = SummaryWriter(log_dir=config.log_dir)
 
     # routine
     for epoch in range(config.start_epoch, config.epochs + 1):
@@ -262,9 +207,7 @@ def main(config):
         if epoch % config.val_freq == 0:
             validate(epoch, val_loader, model, criterion, config, num_votes=2)
 
-        if dist.get_rank() == 0:
-            # save model
-            save_checkpoint(config, epoch, model, optimizer, scheduler)
+        save_checkpoint(config, epoch, model, optimizer, scheduler)
 
         if summary_writer is not None:
             # tensorboard logger
@@ -323,6 +266,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
             # potentials = np.random.rand()
         print("model prediction time: ", time.time()-test_time)
         test_time = time.time()
+
         loss = criterion(pred, points_labels, mask)
         print("criterion time: ", time.time()-test_time)
         test_time = time.time()
@@ -333,6 +277,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         optimizer.step()
         scheduler.step()
+        print("xx.step time: ", time.time()-test_time)
 
         # update meters
         loss_meter.update(loss.item(), bsz)
@@ -458,12 +403,11 @@ if __name__ == "__main__":
     os.makedirs(opt.log_dir, exist_ok=True)
     os.environ["JOB_LOG_DIR"] = config.log_dir
 
-    logger = setup_logger(output=config.log_dir, distributed_rank=dist.get_rank(), name="SensatUrban")
-    if dist.get_rank() == 0:
-        path = os.path.join(config.log_dir, "config.json")
-        with open(path, 'w') as f:
-            json.dump(vars(opt), f, indent=2)
-            json.dump(vars(config), f, indent=2)
-            os.system('cp %s %s' % (opt.cfg, config.log_dir))
-        logger.info("Full config saved to {}".format(path))
+    logger = setup_logger(output=config.log_dir, name="SensatUrban")
+    path = os.path.join(config.log_dir, "config.json")
+    with open(path, 'w') as f:
+        json.dump(vars(opt), f, indent=2)
+        json.dump(vars(config), f, indent=2)
+        os.system('cp %s %s' % (opt.cfg, config.log_dir))
+    logger.info("Full config saved to {}".format(path))
     main(config)
