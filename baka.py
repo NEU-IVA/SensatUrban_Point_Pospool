@@ -11,6 +11,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+from torchpack import distributed as dist
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
@@ -114,6 +115,11 @@ def get_loader(config):
     dataflow = {}
 
     for split in datasets:
+        sampler = torch.utils.data.distributed.DistributedSampler(
+            datasets[split],
+            num_replicas=dist.size(),
+            rank=dist.rank(),
+            shuffle=(split == 'train'))
         dataflow[split] = torch.utils.data.DataLoader(
             datasets[split],
             batch_size=config.batch_size,
@@ -162,7 +168,10 @@ def main(config):
     logger.info(f"length of validation dataset: {n_data}")
 
     model, criterion = build_sensat_segmentation(config, train_loader.dataset.proportions)
-    model = torch.nn.DataParallel(model, device_ids=config.gpus).cuda()
+    model = model.cuda()
+
+    model = torch.nn.parallel.DistributedDataParallel(model,
+                                                      device_ids=[dist.local_rank()], find_unused_parameters=True)
     criterion = criterion.cuda()
 
     if config.optimizer == 'sgd':
@@ -425,6 +434,9 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
 
 if __name__ == "__main__":
     opt, config = parse_option()
+
+    dist.init()
+    torch.cuda.set_device(dist.local_rank())
 
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = False

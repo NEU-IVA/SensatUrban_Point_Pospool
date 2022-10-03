@@ -20,6 +20,9 @@ config.weight_decay = 0
 config.momentum = 0.9
 config.grid_clip_norm = -1
 config.loss_weight = True
+config.knn_k = 10000
+config.knn_radius = 20
+config.voxel_size = 0.2
 
 # ---------------------------------------------------------------------------- #
 # Model
@@ -115,7 +118,7 @@ config.init = 'xavier'
 config.bn_eps = 0.000001
 config.weight_decay = 0.001
 config.grad_norm = 100
-config.in_features_dim = 5
+config.in_features_dim = 6
 config.bottleneck_ratio = 3
 config.first_features_dim = 128
 config.local_aggreagtion = 'adaptive_weight'

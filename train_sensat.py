@@ -288,7 +288,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
     logger.info(f'Train: [E {epoch}/{config.epochs}]')
     for idx, results in enumerate(train_loader):
         data_time.update(time.time() - end)
-        print("step start========================")
+        print("step start===================================")
         test_time = time.time()
         optimizer.zero_grad()
         points = results['lidar'].F
@@ -298,22 +298,17 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         points = points.unsqueeze(0)
         search_tree = results['kdtree']
         bsz = results['lidar'].C[:, 3].max()+1
-        print("load data time: ", time.time()-test_time)
-        test_time = time.time()
 
         # forward
         points = points.cuda(non_blocking=True).contiguous()
         mask = mask.cuda(non_blocking=True)
         features = features.cuda(non_blocking=True)
         points_labels = points_labels.cuda(non_blocking=True)
-        print("cuda loading time: ", time.time()-test_time)
-        test_time = time.time()
 
         points_labels = points_labels.clone().detach()
         mask = mask.clone().detach()
         features = features.transpose(2, 1).contiguous().clone().detach()
         # features = features.transpose(2, 1).contiguous()
-        print("clone time: ", time.time()-test_time)
         test_time = time.time()
 
         if config.knn_radius == 0:
@@ -322,15 +317,10 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
             raise NotImplementedError  # TODO: Complete Sliding Window Method
             # potentials = np.random.rand()
         print("model prediction time: ", time.time()-test_time)
-        test_time = time.time()
         loss = criterion(pred, points_labels, mask)
-        print("criterion time: ", time.time()-test_time)
         test_time = time.time()
-
         loss.backward()
         print("backward time: ", time.time() - test_time)
-        test_time = time.time()
-        #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         optimizer.step()
         scheduler.step()
 
