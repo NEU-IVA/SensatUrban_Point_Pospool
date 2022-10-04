@@ -162,7 +162,8 @@ def main(config):
     logger.info(f"length of validation dataset: {n_data}")
 
     model, criterion = build_sensat_segmentation(config, train_loader.dataset.proportions)
-    model = torch.nn.DataParallel(model, device_ids=config.gpus).cuda()
+    # model = torch.nn.DataParallel(model, device_ids=config.gpus).cuda()
+    model.cuda()
     criterion = criterion.cuda()
 
     if config.optimizer == 'sgd':
@@ -355,14 +356,16 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
             batch_map = results['inverse_map'].C[:, 3]
             bsz = batch_map.max() + 1
             points_labels = results['targets'].F
+            all_points_labels = results['targets_mapped'].F
             search_tree = results['kdtree']
             cloud_label = results['cloud_index']
             input_inds = results['input_inds']
 
-            points = points.cuda(non_blocking=True)
-            mask = mask.cuda(non_blocking=True)
-            features = features.cuda(non_blocking=True)
+            points = points.cuda(non_blocking=True).unsqueeze(0)
+            mask = mask.cuda(non_blocking=True).unsqueeze(0)
+            features = features.cuda(non_blocking=True).unsqueeze(0)
             points_labels = points_labels.cuda(non_blocking=True)
+            all_points_labels = all_points_labels.cuda(non_blocking=True)
             cloud_label = cloud_label.cuda(non_blocking=True)
             input_inds = input_inds.cuda(non_blocking=True)
 
