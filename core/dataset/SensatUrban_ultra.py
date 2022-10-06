@@ -119,6 +119,7 @@ class SensatUrban(torch.utils.data.Dataset):
             #     inds = np.hstack([inds, inds[padding_choice]])
 
         if len(inds) < 100:
+            print("({})'s points number is not enough(<100)".format(self.files[index]))
             return self.__getitem__(index - 1)
 
         labels_selected = labels[inds].astype(np.int64)

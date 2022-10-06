@@ -55,7 +55,7 @@ class GroupingOperation(Function):
         None
         """
         idx, N = ctx.for_backwards
-
+        print("idx, N", idx, " ", N)
         grad_features = _ext.group_points_grad(grad_out.contiguous(), idx, N)
 
         return grad_features, None

@@ -236,6 +236,8 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         features = torch.hstack((results['rgb'].F, points)).unsqueeze(0)
         points_labels = results['targets'].F.unsqueeze(0)
         points = points.unsqueeze(0)
+        cloud_idx = results['cloud_idx'].F.unsqueeze(0)
+        print("current clouds index: ", cloud_idx)
         search_tree = results['kdtree']
         bsz = results['lidar'].C[:, 3].max()+1
 
