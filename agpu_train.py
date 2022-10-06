@@ -354,6 +354,7 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
             features = torch.hstack((results['rgb'].F, points))
             inverse_map = results['inverse_map'].F
             batch_map = results['inverse_map'].C[:, 3]
+            sub_batch_map = results['lidar'].C[:, 3]
             bsz = batch_map.max() + 1
             points_labels = results['targets'].F
             all_points_labels = results['targets_mapped'].F
@@ -364,7 +365,7 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
             points = points.cuda(non_blocking=True).unsqueeze(0)
             mask = mask.cuda(non_blocking=True).unsqueeze(0)
             features = features.cuda(non_blocking=True).unsqueeze(0)
-            points_labels = points_labels.cuda(non_blocking=True)
+            points_labels = points_labels.cuda(non_blocking=True).unsqueeze(0)
             all_points_labels = all_points_labels.cuda(non_blocking=True)
             cloud_label = cloud_label.cuda(non_blocking=True)
             input_inds = input_inds.cuda(non_blocking=True)
@@ -379,10 +380,66 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
                     points = RT(points)
                     points = TS(points)
                     points = points.squeeze(0)
-                    features = torch.hstack(features[:, :3], points)
+                    features = torch.concat(features[:, :3], points)
 
                 # forward
-                pred = model(points, mask, features.transpose(0, 1).contiguous())
+                if config.knn_radius == 0:
+                    pred = model(points, mask, features.transpose(2, 1).contiguous())
+                else:
+                    print("start random sliding window---------------------------------")
+                    potential = np.zeros(points.shape[1], dtype=np.float32)
+                    idx = 1
+                    sub_end = time.time()
+                    pred = np.zeros((points.shape[1], test_loader.dataset.num_classes))
+                    while potential.min() == 0:
+                        idx += 1
+                        sub_points = torch.empty((0, config.knn_k, 3), dtype=torch.float32).cuda()
+                        sub_features = torch.empty((0, config.knn_k, config.in_features_dim), dtype=torch.float32).cuda()
+                        sub_mask = torch.empty((0, config.knn_k), dtype=torch.float32).cuda()
+                        sub_labels = torch.empty((0, config.knn_k), dtype=torch.float32).cuda()
+                        for ib in range(bsz):
+                            print(points.shape)
+                            print("====", batch_map.shape)
+                            ib_points = points[0, sub_batch_map == ib]
+                            ib_potential = potential[sub_batch_map == ib]
+                            ib_features = features[0, sub_batch_map == ib]
+                            ib_labels = points_labels[0, sub_batch_map == ib]
+                            ib_all_labels = all_points_labels[batch_map == ib]
+                            ib_search_tree = search_tree[ib]
+                            ib_center = np.argmin(ib_potential)
+                            ib_inds, dist = ib_search_tree.query_radius(ib_points[ib_center].cpu().numpy().reshape(1, -1),
+                                                                  return_distance=True,
+                                                                  r=config.knn_radius)
+                            print("    choose {}/{}".format(len(ib_inds), config.knn_k))
+                            ib_points = ib_points[ib_inds]
+                            ib_features = ib_features[ib_inds]
+                            ib_labels = ib_labels[ib_inds]
+                            if len(ib_inds) < config.knn_k:
+                                mask = np.zeros(config.knn_k, dtype=np.int32)
+                                mask[:len(ib_inds)] = 1
+                                padding = np.random.choice(len(ib_inds), config.knn_k - len(ib_inds), replace=True)
+                                ib_inds = np.concatenate((ib_inds, padding))
+                                ib_points = torch.concat((ib_points, ib_points[padding]))
+                                ib_features = torch.concat((ib_features, ib_features[padding]))
+                                ib_labels = torch.concat((ib_labels, ib_labels[padding]))
+                            else:
+                                mask = np.ones(config.knn_k, dtype=np.int32)
+                                ib_inds = np.random.permutation(ib_inds)[:config.knn_k]
+                                ib_points = ib_points[ib_inds]
+                                ib_features = ib_features[ib_inds]
+                                ib_labels = ib_labels[ib_inds]
+                            sub_points = torch.concat((sub_points, ib_points.unsqueeze(0)))
+                            sub_features = torch.concat((sub_features, ib_features.unsqueeze(0).transpose(2, 1).contiguous()))
+                            sub_mask = torch.concat((sub_mask, torch.from_numpy(mask).unsqueeze(0)))
+                            sub_labels = torch.concat((sub_labels, ib_labels.unsqueeze(0)))
+                            potential[batch_map == ib][ib_inds] = np.square(1 - dist / np.square(config.knn_radius))
+                        sub_points = sub_points.cuda(non_blocking=True).contiguous()
+                        sub_features = sub_features.cuda(non_blocking=True).contiguous()
+                        sub_mask = sub_mask.cuda(non_blocking=True).contiguous()
+                        sub_labels = sub_labels.cuda(non_blocking=True).contiguous()
+                        sub_pred = model(sub_points, sub_mask, sub_features)
+                        for ib in range(bsz):
+                            pred[sub_batch_map == ib] += sub_pred[ib]
                 loss = criterion(pred, points_labels, mask)
                 losses.update(loss.item(), bsz)
 
@@ -408,13 +465,13 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
             proj_probs = vote_logits
             for ib in range(batch_map.max()+1):
                 ib_proj = inverse_map[batch_map == ib]
-                ib_logits = vote_logits[batch_map == ib]
-                ib_labels = points_labels[batch_map == ib]
+                ib_logits = vote_logits[sub_batch_map == ib]
+                ib_labels = points_labels[sub_batch_map == ib]
                 sub_confusions += confusion_matrix(ib_labels, ib_logits, test_loader.dataset.num_classes)
                 ib_logits = ib_logits[ib_proj]
                 ib_labels = ib_labels[ib_proj]
                 confusions += confusion_matrix(ib_labels, ib_logits, test_loader.dataset.num_classes)
-        sub_IoUs, sub_mIoU = IoU_from_confusions(confusions)
+        sub_IoUs, sub_mIoU = IoU_from_confusions(sub_confusions)
 
         logger.info(f'E{epoch} V{num_votes} * sub_mIoU {sub_mIoU:.3%}')
         logger.info(f'E{epoch} V{num_votes}  * sub_IoUs {sub_IoUs}')
