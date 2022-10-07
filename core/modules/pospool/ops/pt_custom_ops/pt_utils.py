@@ -119,9 +119,11 @@ class MaskedQueryAndGroup(nn.Module):
         self.normalize_xyz = normalize_xyz
 
     def forward(self, query_xyz, support_xyz, query_mask, support_mask, features=None):
+        print("1111111111 masked_ordered_ball_query")
         idx, idx_mask = masked_ordered_ball_query(self.radius, self.nsample, query_xyz, support_xyz,
                                                   query_mask, support_mask)
-
+        print("idx.max()", idx.max())
+        print("idx.min()", idx.min())
         xyz_trans = support_xyz.transpose(1, 2).contiguous()
         grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
         grouped_xyz -= query_xyz.transpose(1, 2).unsqueeze(-1)
@@ -152,8 +154,10 @@ class MaskedNearestQueryAndGroup(nn.Module):
         self.normalize_xyz = normalize_xyz
 
     def forward(self, query_xyz, support_xyz, query_mask, support_mask, features=None):
+        print("22222222222222222 masked_nearest_query")
         idx, idx_mask = masked_nearest_query(query_xyz, support_xyz, query_mask, support_mask)
-
+        print("idx.max()", idx.max())
+        print("idx.min()", idx.min())
         xyz_trans = support_xyz.transpose(1, 2).contiguous()
         grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, 1)
         grouped_xyz -= query_xyz.transpose(1, 2).unsqueeze(-1)
