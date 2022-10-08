@@ -134,9 +134,9 @@ def main():
     os.environ["JOB_LOG_DIR"] = config.log_dir
     logger = setup_logger(output=config.log_dir, name="SensatUrban")
 
-    *_, datasets = get_loader(config)
+    train_dataloader, _, datasets = get_loader(config)
     model, criterion = build_sensat_segmentation(config, datasets['train'].proportions)
-
+    model.cuda()
     if config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(),
                                     lr=config.base_learning_rate,
@@ -152,33 +152,38 @@ def main():
                                       weight_decay=config.weight_decay)
     else:
         raise NotImplementedError(f"Optimizer {config.optimizer} not supported")
+    flag = False
+    if flag:
+        for idx in range(972, 975):
+            result = datasets['train'][idx]
+            end = time.time()
+            print("****************INDEX ", idx)
+            points = result['lidar'].F
+            # batch_map = result['lidar'].C[:, 3]
+            mask = result['mask'].F.unsqueeze(0)
+            features = torch.hstack((torch.from_numpy(result['rgb'].F), points)).unsqueeze(0)
+            points_labels = torch.from_numpy(result['targets'].F).unsqueeze(0)
+            points = points.unsqueeze(0)
+            cloud_idx = result['cloud_index']
+            print("current clouds index: ", cloud_idx)
+            search_tree = result['kdtree']
+            # bsz = result['lidar'].C[:, 3].max() + 1
 
-    err_results = datasets['train'][558:561]
-    for idx, result in enumerate(err_results):
-        end = time.time()
-        print("****************INDEX ", idx+558)
-        points = result['lidar'].F
-        batch_map = result['lidar'].C[:, 3]
-        mask = result['mask'].F.unsqueeze(0)
-        features = torch.hstack((result['rgb'].F, points)).unsqueeze(0)
-        points_labels = result['targets'].F.unsqueeze(0)
-        points = points.unsqueeze(0)
-        cloud_idx = result['cloud_idx'].F.unsqueeze(0)
-        print("current clouds index: ", cloud_idx)
-        search_tree = result['kdtree']
-        bsz = result['lidar'].C[:, 3].max() + 1
+            # forward
+            points = points.cuda(non_blocking=True)
+            mask = mask.cuda(non_blocking=True)
+            features = features.cuda(non_blocking=True)
+            points_labels = points_labels.cuda(non_blocking=True)
+            # features = features.transpose(2, 1).contiguous()
 
-        # forward
-        points = points.cuda(non_blocking=True)
-        mask = mask.cuda(non_blocking=True)
-        features = features.cuda(non_blocking=True)
-        points_labels = points_labels.cuda(non_blocking=True)
-        # features = features.transpose(2, 1).contiguous()
+            pred = model(points, mask, features.transpose(2, 1).contiguous())
+            loss = criterion(pred, points_labels, mask)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            print("batch time: ", time.time() - end)
+    else:
+        for idx, results in enumerate(train_loader):
 
-        pred = model(points, mask, features.transpose(2, 1).contiguous())
-        loss = criterion(pred, points_labels, mask)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        print("batch time: ", time.time() - end)
 
+main()

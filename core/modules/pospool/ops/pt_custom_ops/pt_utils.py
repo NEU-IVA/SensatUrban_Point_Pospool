@@ -33,8 +33,8 @@ class GroupingOperation(Function):
         """
         B, nfeatures, nsample = idx.size()
         _, C, N = features.size()
-
-        ctx.for_backwards = (idx, N)
+        ctx.for_backward = N
+        ctx.save_for_backward(idx)
 
         return _ext.group_points(features, idx)
 
@@ -54,8 +54,10 @@ class GroupingOperation(Function):
             (B, C, N) gradient of the features
         None
         """
-        idx, N = ctx.for_backwards
-        print("idx, N", idx, " ", N)
+        idx = ctx.saved_tensors[0]
+        N = ctx.for_backward
+        print("=======idx: ", idx)
+        print("-------N: ", N)
         grad_features = _ext.group_points_grad(grad_out.contiguous(), idx, N)
 
         return grad_features, None
