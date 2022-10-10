@@ -1,16 +1,18 @@
 data_root: "/data1/zzh/datasets/sensaturban/"
-num_points: 200000
-max_epoch: 50
-batch_size: 4
+num_points: 20000
+max_epoch: 500
+batch_size: 2
 loss_weight: false
+radius: 1
 
 # senstaurban
 bev_size: 500
 bev_scale: 0.05
 bev_range: 12.5
-bev_name: "bev"
+bev_name: "rgb"
 num_classes: 13
 training_size: 33
+voxel_size: 0.2
 
 # checkpoint
 load_path: ''
