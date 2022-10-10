@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
+from torchpack import distributed as dist
 from sklearn.metrics import confusion_matrix
 
 import core.modules.pospool.utils.data_utils as d_utils
@@ -114,12 +115,19 @@ def get_loader(config):
     dataflow = {}
 
     for split in datasets:
+        # sampler = torch.utils.data.distributed.DistributedSampler(
+        #     datasets[split],
+        #     num_replicas=dist.size(),
+        #     rank=dist.rank(),
+        #     shuffle=(split == 'train'))
         dataflow[split] = torch.utils.data.DataLoader(
             datasets[split],
             batch_size=config.batch_size,
             num_workers=config.num_workers,
             pin_memory=True,
-            collate_fn=datasets[split].collate_fn, prefetch_factor=4)
+            collate_fn=datasets[split].collate_fn,
+            # prefetch_factor=4
+        )
 
     return dataflow['train'], dataflow['val']
 
@@ -162,9 +170,15 @@ def main(config):
     logger.info(f"length of validation dataset: {n_data}")
 
     model, criterion = build_sensat_segmentation(config, train_loader.dataset.proportions)
-    # model = torch.nn.DataParallel(model, device_ids=config.gpus).cuda()
     model.cuda()
+    # model = torch.nn.parallel.DistributedDataParallel(model,
+    #                                                   device_ids=[dist.local_rank()],
+    #                                                   find_unused_parameters=True
+    #                                                   )
     criterion = criterion.cuda()
+
+    config.base_learning_rate = config.base_learning_rate * config.batch_size / 8
+    # config.base_learning_rate = config.base_learning_rate * dist.size() * config.batch_size / 8
 
     if config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(),
@@ -247,6 +261,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
         features = features.cuda(non_blocking=True)
         points_labels = points_labels.cuda(non_blocking=True)
         # features = features.transpose(2, 1).contiguous()
+        # print(train_loader.dataset.files[cloud_idx])
 
         if config.knn_radius == 0:
             pred = model(points, mask, features.transpose(2, 1).contiguous())
@@ -317,6 +332,7 @@ def train(epoch, train_loader, model, criterion, optimizer, scheduler, config):
                 loss_meter.update(loss.item(), bsz)
                 print(f"    rsw_idx{idx} sub_loss{loss.item()} time {time.time()-sub_end} ")
                 sub_end = time.time()
+            print("batch time: ", time.time() - end)
             print("end random sliding window-----------------------------------")
         batch_time.update(time.time() - end)
         end = time.time()
@@ -486,6 +502,9 @@ def validate(epoch, test_loader, model, criterion, config, num_votes=10):
 
 
 if __name__ == "__main__":
+    # dist.init()
+    # torch.cuda.set_device(dist.local_rank())
+
     opt, config = parse_option()
 
     torch.backends.cudnn.enabled = True

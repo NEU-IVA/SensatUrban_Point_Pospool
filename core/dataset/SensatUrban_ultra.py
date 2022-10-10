@@ -108,15 +108,15 @@ class SensatUrban(torch.utils.data.Dataset):
                                                return_inverse=True)
 
         mask = torch.ones(len(inds)).type(torch.int32)
-        # if 'train' == self.mode:
-        #     if len(inds) >= self.num_points:
-        #         mask = torch.ones(self.num_points).type(torch.int32)
-        #         inds = np.random.choice(inds, self.num_points, replace=False)
-            # else:
-            #     mask = torch.zeros(self.num_points).type(torch.int32)
-            #     mask[:len(inds)] = 1
-            #     padding_choice = np.random.choice(len(inds), self.num_points - len(inds))
-            #     inds = np.hstack([inds, inds[padding_choice]])
+        if 'train' == self.mode and self.num_points > 0:
+            if len(inds) >= self.num_points:
+                mask = torch.ones(self.num_points).type(torch.int32)
+                inds = np.random.choice(inds, self.num_points, replace=False)
+            else:
+                mask = torch.zeros(self.num_points).type(torch.int32)
+                mask[:len(inds)] = 1
+                padding_choice = np.random.choice(len(inds), self.num_points - len(inds))
+                inds = np.hstack([inds, inds[padding_choice]])
 
         if len(inds) < 100:
             print("({})'s points number is not enough(<100)".format(self.files[index]))

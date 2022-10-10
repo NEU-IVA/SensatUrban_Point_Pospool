@@ -1,8 +1,8 @@
-import argparse
 import os
 import warnings
 warnings.filterwarnings('ignore')
 
+import argparse
 import sys
 import time
 import json
@@ -152,38 +152,44 @@ def main():
                                       weight_decay=config.weight_decay)
     else:
         raise NotImplementedError(f"Optimizer {config.optimizer} not supported")
-    flag = False
-    if flag:
-        for idx in range(972, 975):
-            result = datasets['train'][idx]
-            end = time.time()
-            print("****************INDEX ", idx)
-            points = result['lidar'].F
-            # batch_map = result['lidar'].C[:, 3]
-            mask = result['mask'].F.unsqueeze(0)
-            features = torch.hstack((torch.from_numpy(result['rgb'].F), points)).unsqueeze(0)
-            points_labels = torch.from_numpy(result['targets'].F).unsqueeze(0)
-            points = points.unsqueeze(0)
-            cloud_idx = result['cloud_index']
-            print("current clouds index: ", cloud_idx)
-            search_tree = result['kdtree']
-            # bsz = result['lidar'].C[:, 3].max() + 1
 
-            # forward
-            points = points.cuda(non_blocking=True)
-            mask = mask.cuda(non_blocking=True)
-            features = features.cuda(non_blocking=True)
-            points_labels = points_labels.cuda(non_blocking=True)
-            # features = features.transpose(2, 1).contiguous()
 
-            pred = model(points, mask, features.transpose(2, 1).contiguous())
-            loss = criterion(pred, points_labels, mask)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            print("batch time: ", time.time() - end)
-    else:
-        for idx, results in enumerate(train_loader):
+    print(datasets['train'].files[972])
+    print(datasets['train'].files[973])
+    print(datasets['train'].files[974])
 
+
+    # flag = False
+    # if flag:
+    #     for idx in range(972, 975):
+    #         result = datasets['train'][idx]
+    #         end = time.time()
+    #         print("****************INDEX ", idx)
+    #         points = result['lidar'].F
+    #         # batch_map = result['lidar'].C[:, 3]
+    #         mask = result['mask'].F.unsqueeze(0)
+    #         features = torch.hstack((torch.from_numpy(result['rgb'].F), points)).unsqueeze(0)
+    #         points_labels = torch.from_numpy(result['targets'].F).unsqueeze(0)
+    #         points = points.unsqueeze(0)
+    #         cloud_idx = result['cloud_index']
+    #         print("current clouds index: ", cloud_idx)
+    #         search_tree = result['kdtree']
+    #         # bsz = result['lidar'].C[:, 3].max() + 1
+    #
+    #         # forward
+    #         points = points.cuda(non_blocking=True)
+    #         mask = mask.cuda(non_blocking=True)
+    #         features = features.cuda(non_blocking=True)
+    #         points_labels = points_labels.cuda(non_blocking=True)
+    #         # features = features.transpose(2, 1).contiguous()
+    #
+    #         pred = model(points, mask, features.transpose(2, 1).contiguous())
+    #         loss = criterion(pred, points_labels, mask)
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+    #         print("batch time: ", time.time() - end)
+    # else:
+    #     for idx, results in enumerate(train_loader):
 
 main()
