@@ -70,3 +70,5 @@ def main():
     gen_instance = GenInstance3D(dataset['train'], dataset['val'], args.save_path, augment_classes)
     gen_instance.gen_instance('train')
     gen_instance.gen_instance('val')
+
+

@@ -19,4 +19,4 @@ def compute_covariance_matrix(data):
 
 
 def compute_variance(data):
-    return np.var(data, axis=0)
+    return np.mean(np.var(data, axis=0))
