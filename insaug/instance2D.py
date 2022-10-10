@@ -38,17 +38,14 @@ def load_path(img_root):
     return img_path_list
 
 
-def main():
-    args = get_parser()
-    augment_classes = [int(i) for i in args.augment_classes.split(',')]
-    save_path = args.save_path
-    save_path = os.path.join(save_path, 'ins')
+def gen_ins_npy(args, split, augment_classes):
+    """save npy: [N, 6]; 6 channels: [height_idx, width_idx, r, g, b, d]"""
+    save_path = os.path.join(args.save_path, 'raw_ins')
     for target_class in augment_classes:
         class_dir = os.path.join(save_path, label_to_names[target_class])
         if not os.path.exists(class_dir):
             os.mkdir(class_dir)
             print(f"mkdir {class_dir}")
-    split = ['train', 'val']
     for s in split:
         img_root = os.path.join(args.data_root, 'img_dir', s)
         if not os.path.exists(img_root):
@@ -69,5 +66,39 @@ def main():
                                                                 ins_features.shape[0])
                     print("    saving {}, variance: {:.4f}".format(save_name, compute_variance(ins_pixels)))
                     np.save(os.path.join(save_path, label_to_names[target_class], save_name), ins_pixels)
+
+
+def gen_img_from_npy(args, augment_classes):
+    load_path = os.path.join(args.save_path, 'raw_ins')
+    for target_class in augment_classes:
+        class_name = label_to_names[target_class]
+        for npy_path in os.listdir(os.path.join(load_path, class_name)):
+            img_path = npy_path.replace('raw_ins', 'img_ins')[:-3]+"png"
+            ins_features = np.load(npy_path)
+            ins_pixels = ins_features[:, :2]
+            left_top = np.min(ins_pixels, axis=0)
+            right_bottom = np.max(ins_pixels, axis=0)
+            img = np.zeros((right_bottom[0]-left_top[0], right_bottom[1]-left_top[1], 4), dtype=np.float32)
+            img[ins_pixels[:, 0], ins_pixels[:, 1]] = ins_features[:, 2:]
+            cv2.imwrite(img_path, img)
+
+
+def gen_500x500_img_from_img(args, augment_classes):
+    load_path = os.path.join(args.save_path, 'img_ins')
+    for target_class in augment_classes:
+        class_name = label_to_names[target_class]
+        for img_path in os.listdir(os.path.join(load_path, class_name)):
+            aug_img_path = img_path.replace('img_ins, 500x500_ins')
+            img = cv2.imread(img_path)
+
+
+
+
+def main():
+    args = get_parser()
+    augment_classes = [int(i) for i in args.augment_classes.split(',')]
+    split = ['train', 'val']
+    gen_ins_npy(args, split, augment_classes)
+    gen_img_from_npy(args, augment_classes)
 
 
